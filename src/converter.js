@@ -1,13 +1,24 @@
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const { execSync } = require('child_process');
 const path = require('path');
 
-// In production, ffmpeg binary is in extraResources
-const resolvedPath = ffmpegPath.includes('app.asar')
-  ? ffmpegPath.replace('app.asar', 'app.asar.unpacked')
-  : ffmpegPath;
+// Prefer system ffmpeg (needed for hevc_videotoolbox + alpha_quality on macOS).
+// Fall back to bundled @ffmpeg-installer version if system ffmpeg not found.
+function resolveFFmpegPath() {
+  try {
+    const systemPath = execSync('which ffmpeg', { encoding: 'utf-8' }).trim();
+    if (systemPath) return systemPath;
+  } catch {
+    // system ffmpeg not found
+  }
 
-ffmpeg.setFfmpegPath(resolvedPath);
+  const bundledPath = require('@ffmpeg-installer/ffmpeg').path;
+  return bundledPath.includes('app.asar')
+    ? bundledPath.replace('app.asar', 'app.asar.unpacked')
+    : bundledPath;
+}
+
+ffmpeg.setFfmpegPath(resolveFFmpegPath());
 
 /**
  * Probe a file to get metadata (duration, codec, pixel format, resolution)
