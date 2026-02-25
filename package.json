@@ -1,0 +1,54 @@
+{
+  "name": "carespace-video-converter",
+  "version": "1.0.0",
+  "description": "Convert ProRes 4444 (.mov) with alpha to WebM VP9 alpha (.webm) for transparent video overlays",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.carespace.video-converter",
+    "productName": "CareSpace Video Converter",
+    "mac": {
+      "category": "public.app-category.video",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/@ffmpeg-installer/",
+        "to": "ffmpeg",
+        "filter": ["**/*"]
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carespace-ai/carespace-video-converter.git"
+  },
+  "keywords": ["ffmpeg", "webm", "vp9", "alpha", "video-converter", "electron"],
+  "author": "CareSpace",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/carespace-ai/carespace-video-converter/issues"
+  },
+  "homepage": "https://github.com/carespace-ai/carespace-video-converter#readme",
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "electron-builder": "^26.8.1",
+    "fluent-ffmpeg": "^2.1.3"
+  },
+  "devDependencies": {
+    "electron": "^40.6.1"
+  }
+}
