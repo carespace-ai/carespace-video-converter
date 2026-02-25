@@ -20,12 +20,10 @@
       "target": "nsis"
     },
     "files": [
-      "src/**/*"
+      "**/*",
+      "!dist"
     ],
-    "asar": true,
-    "asarUnpack": [
-      "node_modules/@ffmpeg-installer/**"
-    ]
+    "asar": false
   },
   "repository": {
     "type": "git",
