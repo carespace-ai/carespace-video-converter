@@ -1,8 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { convertToWebM, convertToHEVC, probeFile } = require('./converter');
 
 let mainWindow;
+let activeCommand = null;
+let activeOutputPath = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -55,33 +58,66 @@ ipcMain.handle('probe-file', async (_event, filePath) => {
   return probeFile(filePath);
 });
 
+function cleanupPartialFile(filePath) {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {
+    // best-effort cleanup
+  }
+}
+
 ipcMain.handle('convert', async (_event, { filePath, outputDir, options }) => {
   const baseName = path.basename(filePath, path.extname(filePath));
   const results = [];
 
   if (options.webm) {
     const outPath = path.join(outputDir, `${baseName}.webm`);
+    activeOutputPath = outPath;
     try {
-      await convertToWebM(filePath, outPath, options, (progress) => {
+      const { promise, command } = convertToWebM(filePath, outPath, options, (progress) => {
         mainWindow.webContents.send('progress', { filePath, format: 'webm', progress });
       });
+      activeCommand = command;
+      await promise;
       results.push({ format: 'webm', path: outPath, success: true });
     } catch (err) {
+      cleanupPartialFile(outPath);
       results.push({ format: 'webm', path: outPath, success: false, error: err.message });
+    } finally {
+      activeCommand = null;
+      activeOutputPath = null;
     }
   }
 
   if (options.hevc) {
     const outPath = path.join(outputDir, `${baseName}_safari.mov`);
+    activeOutputPath = outPath;
     try {
-      await convertToHEVC(filePath, outPath, options, (progress) => {
+      const { promise, command } = convertToHEVC(filePath, outPath, options, (progress) => {
         mainWindow.webContents.send('progress', { filePath, format: 'hevc', progress });
       });
+      activeCommand = command;
+      await promise;
       results.push({ format: 'hevc', path: outPath, success: true });
     } catch (err) {
+      cleanupPartialFile(outPath);
       results.push({ format: 'hevc', path: outPath, success: false, error: err.message });
+    } finally {
+      activeCommand = null;
+      activeOutputPath = null;
     }
   }
 
   return results;
+});
+
+ipcMain.handle('cancel-convert', async () => {
+  if (activeCommand) {
+    activeCommand.kill('SIGKILL');
+    cleanupPartialFile(activeOutputPath);
+    activeCommand = null;
+    activeOutputPath = null;
+  }
 });

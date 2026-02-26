@@ -249,6 +249,67 @@
     .status.success { color: #22c55e; }
     .status.error { color: #ef4444; }
     .status.converting { color: #6847C6; }
+    .status.cancelled { color: #f59e0b; }
+
+    .file-item.active {
+      border-left: 3px solid #6847C6;
+    }
+
+    .batch-progress {
+      -webkit-app-region: no-drag;
+      margin-top: 12px;
+      flex-shrink: 0;
+    }
+
+    .batch-counter {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 4px;
+    }
+
+    .batch-bar {
+      height: 6px;
+      background: #2a2a2a;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .batch-bar .fill {
+      height: 100%;
+      background: #6847C6;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    .batch-summary {
+      -webkit-app-region: no-drag;
+      margin-top: 12px;
+      padding: 12px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #ccc;
+      flex-shrink: 0;
+    }
+
+    .batch-summary .counts {
+      display: flex;
+      gap: 16px;
+    }
+
+    .batch-summary .counts span { font-weight: 600; }
+    .batch-summary .counts .succeeded { color: #22c55e; }
+    .batch-summary .counts .failed { color: #ef4444; }
+    .batch-summary .counts .cancelled { color: #f59e0b; }
+
+    .btn-primary.cancel-mode {
+      background: #dc2626;
+    }
+
+    .btn-primary.cancel-mode:hover {
+      background: #ef4444;
+    }
   </style>
 </head>
 <body>
@@ -300,6 +361,9 @@
     </div>
 
     <div class="file-list" id="fileList"></div>
+
+    <div id="batchProgress"></div>
+    <div id="batchSummary"></div>
 
     <button class="btn btn-primary" id="btnConvert" disabled>Convert</button>
   </div>
