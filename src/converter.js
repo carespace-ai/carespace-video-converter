@@ -2,23 +2,32 @@ const ffmpeg = require('fluent-ffmpeg');
 const { execSync } = require('child_process');
 const path = require('path');
 
-// Prefer system ffmpeg (needed for hevc_videotoolbox + alpha_quality on macOS).
-// Fall back to bundled @ffmpeg-installer version if system ffmpeg not found.
-function resolveFFmpegPath() {
+// Prefer system ffmpeg/ffprobe (needed for hevc_videotoolbox + alpha_quality on macOS).
+// Fall back to bundled @ffmpeg-installer version if system binaries not found.
+function resolveSystemBinary(name) {
   try {
-    const systemPath = execSync('which ffmpeg', { encoding: 'utf-8' }).trim();
+    const systemPath = execSync(`which ${name}`, { encoding: 'utf-8' }).trim();
     if (systemPath) return systemPath;
   } catch {
-    // system ffmpeg not found
+    // not found on system
   }
-
-  const bundledPath = require('@ffmpeg-installer/ffmpeg').path;
-  return bundledPath.includes('app.asar')
-    ? bundledPath.replace('app.asar', 'app.asar.unpacked')
-    : bundledPath;
+  return null;
 }
 
-ffmpeg.setFfmpegPath(resolveFFmpegPath());
+function resolveBundledPath(modulePath) {
+  return modulePath.includes('app.asar')
+    ? modulePath.replace('app.asar', 'app.asar.unpacked')
+    : modulePath;
+}
+
+ffmpeg.setFfmpegPath(
+  resolveSystemBinary('ffmpeg') ||
+  resolveBundledPath(require('@ffmpeg-installer/ffmpeg').path)
+);
+ffmpeg.setFfprobePath(
+  resolveSystemBinary('ffprobe') ||
+  resolveBundledPath(require('@ffprobe-installer/ffprobe').path)
+);
 
 /**
  * Probe a file to get metadata (duration, codec, pixel format, resolution)
