@@ -1,6 +1,6 @@
 {
   "name": "carespace-video-converter",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Convert ProRes 4444 (.mov) with alpha to WebM VP9 alpha (.webm) for transparent video overlays",
   "main": "src/main.js",
   "scripts": {
