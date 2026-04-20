@@ -91,11 +91,16 @@ function convertToWebM(inputPath, outputPath, options, onProgress) {
  * Convert to HEVC with alpha (Safari fallback) using videotoolbox
  */
 function convertToHEVC(inputPath, outputPath, options, onProgress) {
+  // hevc_videotoolbox only preserves alpha when the input pixel format carries it.
+  // Without an explicit -pix_fmt, ffmpeg may auto-negotiate to yuv420p and silently
+  // drop the alpha channel, producing a Safari-opaque file even though -alpha_quality
+  // is set. bgra is the canonical alpha-capable format accepted by the encoder.
   const command = ffmpeg(inputPath)
     .outputOptions([
       '-c:v', 'hevc_videotoolbox',
       '-allow_sw', '1',
       '-alpha_quality', '0.75',
+      '-pix_fmt', 'bgra',
       '-tag:v', 'hvc1',
       '-an',
     ])
