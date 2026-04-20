@@ -1,10 +1,29 @@
 const ffmpeg = require('fluent-ffmpeg');
 const { execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 // Prefer system ffmpeg/ffprobe (needed for hevc_videotoolbox + alpha_quality on macOS).
-// Fall back to bundled @ffmpeg-installer version if system binaries not found.
+// GUI Electron apps on macOS don't inherit the shell PATH, so `which` alone misses
+// Homebrew binaries. Check known paths explicitly before falling back.
+const SYSTEM_SEARCH_PATHS = [
+  '/opt/homebrew/bin',  // Apple Silicon Homebrew
+  '/usr/local/bin',     // Intel Homebrew
+  '/usr/bin',
+  '/opt/local/bin',     // MacPorts
+];
+
 function resolveSystemBinary(name) {
+  for (const dir of SYSTEM_SEARCH_PATHS) {
+    const candidate = path.join(dir, name);
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        return candidate;
+      }
+    } catch {
+      // ignore and continue
+    }
+  }
   try {
     const systemPath = execSync(`which ${name}`, { encoding: 'utf-8' }).trim();
     if (systemPath) return systemPath;
@@ -20,14 +39,29 @@ function resolveBundledPath(modulePath) {
     : modulePath;
 }
 
+const systemFfmpeg = resolveSystemBinary('ffmpeg');
+const systemFfprobe = resolveSystemBinary('ffprobe');
+
 ffmpeg.setFfmpegPath(
-  resolveSystemBinary('ffmpeg') ||
-  resolveBundledPath(require('@ffmpeg-installer/ffmpeg').path)
+  systemFfmpeg || resolveBundledPath(require('@ffmpeg-installer/ffmpeg').path)
 );
 ffmpeg.setFfprobePath(
-  resolveSystemBinary('ffprobe') ||
-  resolveBundledPath(require('@ffprobe-installer/ffprobe').path)
+  systemFfprobe || resolveBundledPath(require('@ffprobe-installer/ffprobe').path)
 );
+
+// hevc_videotoolbox (+ alpha_quality) is only available in Apple's system ffmpeg builds.
+// The bundled @ffmpeg-installer/ffmpeg is a cross-platform static build that lacks it.
+function hasVideoToolboxHEVC() {
+  if (!systemFfmpeg) return false;
+  try {
+    const encoders = execSync(`"${systemFfmpeg}" -hide_banner -encoders`, { encoding: 'utf-8' });
+    return /hevc_videotoolbox/.test(encoders);
+  } catch {
+    return false;
+  }
+}
+
+const HEVC_VIDEOTOOLBOX_AVAILABLE = hasVideoToolboxHEVC();
 
 /**
  * Probe a file to get metadata (duration, codec, pixel format, resolution)
@@ -91,6 +125,16 @@ function convertToWebM(inputPath, outputPath, options, onProgress) {
  * Convert to HEVC with alpha (Safari fallback) using videotoolbox
  */
 function convertToHEVC(inputPath, outputPath, options, onProgress) {
+  if (!HEVC_VIDEOTOOLBOX_AVAILABLE) {
+    const message = systemFfmpeg
+      ? 'HEVC alpha requires Apple hevc_videotoolbox encoder, which is missing from the installed ffmpeg. Install Apple\'s build via Homebrew: brew install ffmpeg'
+      : 'HEVC alpha requires a system ffmpeg with hevc_videotoolbox (macOS only). Install via Homebrew: brew install ffmpeg';
+    return {
+      promise: Promise.reject(new Error(message)),
+      command: null,
+    };
+  }
+
   // hevc_videotoolbox only preserves alpha when the input pixel format carries it.
   // Without an explicit -pix_fmt, ffmpeg may auto-negotiate to yuv420p and silently
   // drop the alpha channel, producing a Safari-opaque file even though -alpha_quality
